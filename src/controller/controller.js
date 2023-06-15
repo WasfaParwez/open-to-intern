@@ -1,7 +1,7 @@
 const InternModel= require('../model/internmodel');
 const CollegeModel= require('../model/collegemodel')
 const validator = require('../util/validator')
-const isURL = require('is-url');
+const validpackage=require('valid-url')
 
 //================================================================================================
 
@@ -16,26 +16,15 @@ const createCollege =async(req,res)=>{
     if(!name){
         return res.status(400).send({status:false,message:"name is required"});
     }
-    if(!validator.isValid(name))
-    return res.status(400).send({status:false,message:"name is invalid"})
-    if(!validator.validString(name))
-    return res.status(400).send({status:false,message:"name is not in valid format"})
-
     if(!fullName){
         return res.status(400).send({status:false,message:"fullName is required"});
     }
-    if(!validator.isValid(fullName))
-    return res.status(400).send({status:false,message:"fullName is invalid"})
-    if(!validator.validString(fullName))
-    return res.status(400).send({status:false,message:"fullName is not in valid format"})
-
     if(!logoLink){
         return res.status(400).send({status:false,message:"logoLink is required"});
     }
-    if(!validator.isValid(logoLink))
-    return res.status(400).send({status:false,message:"logoLink is invalid"})
-    if (!isURL(logoLink)) return res.status(400).send({ status: false, msg: "not a valid logoLink" });
-
+    if(!validpackage.isWebUri(logoLink)){
+        return res.status(400).send({ status: false, message: "Enter valid logoLink" })
+    }
     const namefind = await CollegeModel.findOne({name:name})
     if(namefind){
         return res.status(400).send({status:false,message:"Name already exists"})
@@ -63,7 +52,7 @@ catch(error){
 const createIntern= async (req,res)=>{
     try{
     const data=req.body;
-    const {name,email,mobile,collegeId}=data;
+    const {name,email,mobile,collegeName}=data;
 
     if(!validator.isRequestBodyValid(data))
      return res.status(400).send({status:false,message:"Invalid request"})
@@ -72,8 +61,6 @@ const createIntern= async (req,res)=>{
         return res.status(400).send({status:false,message:"name is required"});}
     if(!validator.isValid(name))
     return res.status(400).send({status:false,message:"name is invalid"})
-    if(!validator.validString(name))
-    return res.status(400).send({status:false,message:"name is not in valid format"})
 
     if(!email){
         return res.status(400).send({status:false,message:"email is required"});}
@@ -91,14 +78,14 @@ const createIntern= async (req,res)=>{
     if(mobilefind){
         return res.status(400).send({status:false,message:"Mobile number already exists"})}
 
-    if(!collegeId){
-            return res.status(400).send({status:false,message:"collegeId is required"});
+    const clgId = await CollegeModel.findOne({name : collegeName})
+    if(!clgId){
+        return res.status(400).send({status : false, message : "enter correct college name"})
         }
-    if(!validator.isObjectIdValid(collegeId)){
-        return res.status(400).send({status:false,message:"collegeId is invalid"});}
+    const collegeId = clgId._id
+    const createdata = {name, mobile, email, collegeId}
 
-    const intern= await InternModel.create(data);
-    console.log(intern.email)
+    const intern= await InternModel.create(createdata);
 
     const response={
         isDeleted: intern.isDeleted,
@@ -120,28 +107,28 @@ catch(error){
 
 const getAllCollegeInterns=async(req,res)=>{
     try{
-    const collegeName = req.query.collegeName
-
-    const college= await CollegeModel.findOne({name:collegeName})
-    if(!college){
-        return res.status(404).send({status:false,message:"college not found"})
-    }
-
-    const interns= await InternModel.find({collegeId:college._id}).select({"name": 1,"email": 1,"mobile": 1})
-
-    const response={
-        name: collegeName,
-        fullName: college.fullName,
-        logoLink: college.logoLink,
-        interns: interns
-    }
-
-    res.status(200).send({status:true,data:response}); 
+        const collegeName = req.query.collegeName
     
-}
-catch(error){
-    res.status(500).send({status:false,message:error.message});
-}
+        const college= await CollegeModel.findOne({name:collegeName,isDeleted:false})
+        if(!college){
+            return res.status(404).send({status:false,message:"college not found"})
+        }
+    
+        const interns= await InternModel.find({collegeId:college._id,isDeleted:false}).select({"name": 1,"email": 1,"mobile": 1})
+    
+        const response={
+            name: collegeName,
+            fullName: college.fullName,
+            logoLink: college.logoLink,
+            interns: interns
+        }
+    
+        return res.status(200).send({status:true,data:response}); 
+        
+    }
+    catch(error){
+        res.status(500).send({status:false,message:error.message});
+    }
 }
 
 module.exports={

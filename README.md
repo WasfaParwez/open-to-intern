@@ -1,4 +1,4 @@
-## Open to Intern Project Requirement
+## Open to Intern Project
 
 ### Models
 - College Model
